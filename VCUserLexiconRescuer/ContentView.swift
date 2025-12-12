@@ -220,8 +220,15 @@ struct ContentView: View {
             )
             if components.count >= 2 {
               let value = String(components[1])
-              // 判斷是否為單漢字（一個 Unicode 字元）
-              if value.count == 1 {
+              let keyChain = components[0].split(separator: "-")
+              let conditions: [Bool] = [
+                value.count == 1,
+                keyChain.count == 1,
+                keyChain.allSatisfy({ !$0.hasPrefix("_") && !$0.isEmpty }),
+              ]
+              let allConditionsMet = conditions.reduce(true, { $0 && $1 })
+              // 判斷是否為單漢字（一個 Unicode 字元）且讀音串長度為1、讀音不包含標點符號。
+              if allConditionsMet {
                 removedCount += 1
                 continue  // 跳過這一行，不保留
               }
