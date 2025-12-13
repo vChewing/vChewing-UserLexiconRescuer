@@ -10,6 +10,7 @@ struct ContentView: View {
   @State private var showAlert: Bool = false
   @State private var alertTitle: String = ""
   @State private var alertMessage: String = ""
+  @State private var alsoBleachCustomizedNonKanjiUnigrams: Bool = false
 
   private let windowSize = CGSize(width: 800, height: 600)
 
@@ -44,6 +45,11 @@ struct ContentView: View {
           .background(Color.secondary.opacity(0.1))
           .cornerRadius(8)
 
+          Toggle(
+            "也處理自訂標點符號順序異常的情況（會清理相關自訂資料）",
+            isOn: $alsoBleachCustomizedNonKanjiUnigrams
+          )
+
           Button(action: performRescue) {
             if isProcessing {
               ProgressView()
@@ -66,7 +72,7 @@ struct ContentView: View {
               .frame(maxWidth: .infinity, alignment: .leading)
               .padding()
           }
-          .frame(maxHeight: 200)
+          .frame(maxHeight: 300)
           .background(Color.black.opacity(0.05))
           .cornerRadius(8)
         }
@@ -132,7 +138,7 @@ struct ContentView: View {
         statusMessage = log.joined(separator: "\n")
         isProcessing = false
         alertTitle = "完成"
-        alertMessage = "救援操作已完成。vChewing 將在您下次切換輸入法時自動重新啟動。"
+        alertMessage = "救援操作已完成。vChewing 將在您下次切換輸入法時自動重新啟動。\n\n如果您的 vChewing 版本低於 4.2.0 的話，請盡快升級、且千萬不要再輕易開啟「允許對單個漢字升頻或排除」這個功能了。這個功能的不當使用會對組句引擎帶來毀滅性的干擾效果。\n\nvChewing 4.2.0 版允許你直接對候選字詞強制套用倚天中文 DOS 系統的候選字詞排序，你應該不會再需要對單個漢字的候選字詞調整選字窗排序了。"
         showAlert = true
       }
     }
@@ -221,11 +227,15 @@ struct ContentView: View {
             if components.count >= 2 {
               let value = String(components[1])
               let keyChain = components[0].split(separator: "-")
-              let conditions: [Bool] = [
+              var conditions: [Bool] = [
                 value.count == 1,
                 keyChain.count == 1,
-                keyChain.allSatisfy({ !$0.hasPrefix("_") && !$0.isEmpty }),
               ]
+              if !alsoBleachCustomizedNonKanjiUnigrams {
+                conditions.append(
+                  keyChain.allSatisfy({ !$0.hasPrefix("_") && !$0.isEmpty })
+                )
+              }
               let allConditionsMet = conditions.reduce(true, { $0 && $1 })
               // 判斷是否為單漢字（一個 Unicode 字元）且讀音串長度為1、讀音不包含標點符號。
               if allConditionsMet {
@@ -257,8 +267,9 @@ struct ContentView: View {
   private func resetUserDefaults() -> String {
     let vChewingDefaults = UserDefaults(suiteName: "org.atelierInmu.vChewing")
     vChewingDefaults?.removeObject(forKey: "AllowBoostingSingleKanjiAsUserPhrase")
+    vChewingDefaults?.removeObject(forKey: "AllowRescoringSingleKanjiCandidates")
     vChewingDefaults?.synchronize()
-    return "  ✓ 已重設 AllowBoostingSingleKanjiAsUserPhrase 設定"
+    return "  ✓ 已重設 AllowBoostingSingleKanjiAsUserPhrase (4.1.7 版為止) & AllowRescoringSingleKanjiCandidates (4.2.0版開始) 設定，關掉了「允許對單個漢字升頻或排除」的功能。"
   }
 
   /// 結束 vChewing 進程
